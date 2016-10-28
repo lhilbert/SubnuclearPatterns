@@ -1,5 +1,5 @@
 function [nuc_int,nuc_area,neighbor_matching,AC_length,nucImage] = ...
-    analyzeSingleStack(rawStack,segChannel,pixelArea,minArea)
+    analyzeSingleStack(rawStack,segChannel,pixelArea,minArea,maxArea)
 
 plotSegmentation = false;
 
@@ -12,13 +12,13 @@ numChannels = numel(rawStack);
 
 contrastVec = zeros(1,rawStackSizeZ);
 
-% use only center 20% square for contrast calculation
+% use only center square for contrast calculation
 
-yLow = round(rawStackSizeY.*0.4);
-yHigh = round(rawStackSizeY.*0.6);
+yLow = round(rawStackSizeY.*0.35);
+yHigh = round(rawStackSizeY.*0.65);
 
-xLow = round(rawStackSizeX.*0.4);
-xHigh = round(rawStackSizeX.*0.6);
+xLow = round(rawStackSizeX.*0.35);
+xHigh = round(rawStackSizeX.*0.65);
 
 for ll = 1:rawStackSizeZ
     
@@ -179,7 +179,8 @@ regionAreas = [regionProps(:).Area];
 
 
 % Restrict to objects in area range
-validVolInds = regionAreas.*pixelArea>=minArea;
+validVolInds = regionAreas.*pixelArea>=minArea ...
+    & regionAreas.*pixelArea<=maxArea;
 nucleiRegions = struct;
 nucleiRegions.Connectivity = regions.Connectivity;
 nucleiRegions.ImageSize = regions.ImageSize;
@@ -197,17 +198,6 @@ nucleiCentroid = {nucleiProps(:).WeightedCentroid};
     sum((elmt-[rawStackSizeX./2,rawStackSizeY./2]).^2),nucleiCentroid));
 
 if numel(nucleiCentroid)<1
-    
-    
-    subplot(1,2,1)
-    imagesc(maxContrastImage{segChannel})
-    axis equal
-    
-    subplot(1,2,2)
-    imagesc(segBinImg)
-    axis equal
-    
-    drawnow
     
     neighbor_matching = zeros(1,numChannels);
     neighbor_matching(:) = NaN;
@@ -227,7 +217,7 @@ end
 
 maxCentroid = nucleiCentroid{minInd};
 
-maxArea = nucleiProps(minInd).Area;
+maxArea = nucleiProps(minInd).Area.*pixelArea;
 maxInt = nucleiProps(minInd).MeanIntensity;
 maxBBox = nucleiProps(minInd).BoundingBox;
 maxImage = nucleiProps(minInd).Image;
@@ -359,7 +349,7 @@ for cc = 1:numChannels
 
     quantImg = maxContrastImage{cc};
     
-    nucImage{cc} = quantImg.*segMask;
+    nucImage{cc} = quantImg;
     
     shift = 1;
     

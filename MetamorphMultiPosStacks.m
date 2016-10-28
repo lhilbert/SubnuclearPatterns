@@ -24,6 +24,7 @@ seriesExcludeCells = {[],[],[],[],[],[],[],[],[],[],[]};
 
 cond_vec = [1,1,0,1,1,1,1,0,1,1,0]; % [Flavopiridol] in uM
 
+useSets = [10,11];
 useSets = [1:11];
 
 filepath_cell = filepath_cell(useSets);
@@ -46,8 +47,8 @@ segChannel = 1;
 histStepSize = 1;
 
 % % unit: square micrometers
-minArea = 50; % maximum volume for nucleus to be recognized,
-
+minArea = 40; % minimum area for nucleus to be recognized
+maxArea = 210;% maximum area for nucleus to be recognized
 
 %% --- read and segment 3D stacks
 
@@ -68,6 +69,8 @@ nucCent = cell(1,numSets);
 nucArea_cell = cell(1,numSets);
 nucInt_cell = cell(1,numSets);
 cytoInt = cell(1,numSets);
+
+voxelSizes = zeros(1,numSets);
 
 spectra = cell(1,numSets);
 
@@ -104,6 +107,8 @@ for ff = 1:numSets
     voxelSizeY = voxelSizeY.value(ome.units.UNITS.MICROM);
     voxelSizeY = voxelSizeY.doubleValue();
 
+    voxelSizes(ff) = voxelSizeX;
+    
     % ---
     rawStackSizeX = omeMeta.getPixelsSizeX(0).getValue(); % image width, pixels
     rawStackSizeY = omeMeta.getPixelsSizeY(0).getValue(); % image height, pixels
@@ -143,7 +148,8 @@ for ff = 1:numSets
         end
                             
         [nuc_int,nuc_area,neighbor_matching,AClength,nucImage] = ...
-            analyzeSingleStack(rawStack,segChannel,pixelArea,minArea);
+            analyzeSingleStack(rawStack,segChannel,pixelArea,...
+            minArea,maxArea);
         
         nucArea_cell{ff}(gg) = nuc_area;
         nucInt_cell{ff}(:,gg) = nuc_int;
@@ -165,6 +171,8 @@ end
 
 
 %% -- plot distributions
+
+figure(1)
 
 clf
 
@@ -395,7 +403,7 @@ hold off
 
 title('1 \muM Flavopiridol')
 
-xlabel('Neighbor matching')
+xlabel('DNA demixing')
 ylabel('Frequency')
 
 set(gca,'Box','on')
@@ -458,3 +466,91 @@ legend([CTRL_withTxn_handle;CTRL_noTxn_handle;FP_handle;...
     sprintf('Slope: %0.2g (p=%0.2g)',FP_slope,FP_slope_pValue),...
     sprintf('Slope: %0.2g (p=%0.2g)',CTRL_slope,CTRL_slope_pValue)},...
     'EdgeColor','none')
+
+%% --- Putting out example images
+
+figure(2)
+
+clf
+
+channel2Max = 5500;
+
+plotSpan = 17;
+
+ExampleCalls = {[11,32],[11,30],[8,15],...
+    [10,7],[10,35],[10,9]};
+ExampleShifts = {[4.5,5.0],[4.5,4],[5,5]...
+    [5.0,3.5],[1.5,0.5],[5,4]};
+
+
+numExamples = numel(ExampleCalls);
+
+for kk = 1:numExamples
+    
+    call_kk = ExampleCalls{kk}(1);
+    call_ll = ExampleCalls{kk}(2);
+    
+    plotScale = plotSpan.*voxelSizes(call_kk);
+    
+    if ~isempty(nucImage_cell{call_kk}{1,call_ll})
+        
+        subplot(2,numExamples,kk)
+        thisImage = nucImage_cell{call_kk}{1,call_ll};
+        
+        [totalY,totalX] = size(thisImage);
+        
+        imagesc([0,totalX.*voxelSizes(call_kk)],...
+            [0,totalX.*voxelSizes(call_kk)],...
+            thisImage./max(thisImage(:)))
+        axis tight
+        axis equal
+        
+        set(gca,'XLim',[0,plotSpan]+ExampleShifts{kk}(2),...
+            'YLim',[0,plotSpan]+ExampleShifts{kk}(1))
+        
+        xlabel('')
+        ylabel('')
+        
+        title(sprintf('%2.2f',...
+            neighbor_matching_cell{call_kk}(1,call_ll)))
+        
+        colormap(gray)
+        
+        set(gca,'YTickLabels',[],'XTickLabels',[])
+
+        subplot(2,numExamples,numExamples+kk)
+        thisImage = nucImage_cell{call_kk}{2,call_ll};
+        imagesc([0,totalX.*voxelSizes(call_kk)],...
+            [0,totalX.*voxelSizes(call_kk)],...
+            thisImage./channel2Max,[0,1])
+        axis tight
+        axis equal
+        
+        xlabel('')
+        ylabel('')
+        
+        set(gca,'XLim',[0,plotSpan]+ExampleShifts{kk}(2),...
+            'YLim',[0,plotSpan]+ExampleShifts{kk}(1))
+        
+        
+        title(sprintf('%0.0f',...
+            nucInt_cell{call_kk}(2,call_ll)))
+        
+        colormap(gray)
+        
+        set(gca,'YTickLabels',[],'XTickLabels',[])
+        
+    else
+        subplot(2,numExamples,kk)
+        cla
+        subplot(2,numExamples,numExamples+kk)
+        cla
+    end
+    
+end
+
+subplot(2,numExamples,1)
+hold on
+plot([1.5,6.5]+ExampleShifts{1}(1),...
+    [14.5,14.5]+ExampleShifts{1}(2),'w-','LineWidth',5)
+hold off
