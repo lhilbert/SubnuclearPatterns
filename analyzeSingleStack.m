@@ -1,4 +1,5 @@
-function [nuc_int,nuc_area,neighbor_matching,AC_length,nucImage] = ...
+function [nuc_int,cyto_int,nuc_area,...
+    neighbor_matching,AC_length,CoV,nucImage] = ...
     analyzeSingleStack(rawStack,segChannel,pixelArea,minArea,maxArea)
 
 plotSegmentation = false;
@@ -57,13 +58,13 @@ counts = counts./max(counts);
 
 [threshVal,otsuMetric] = otsuLimit(binEdges,counts,[0,Inf]);
 
-segImage = medianFiltImage>=threshVal;
+segImage = medianFiltImage>=1.2.*threshVal;
 
 % --- erode/dilate treatment with hole-filling
 
 dilateCycles = 6;
 dilateMeasure = 6;
-erodeCycles = 6;
+erodeCycles = 12;
 
 % Make neighborhood mask for operations
 neighborhood = ...
@@ -208,6 +209,10 @@ if numel(nucleiCentroid)<1
     nuc_area = NaN;
     nuc_int = zeros(1,numChannels);
     nuc_int(:) = NaN;
+    cyto_int = zeros(1,numChannels);
+    cyto_int(:) = NaN;
+    CoV = zeros(1,numChannels);
+    CoV(:) = NaN;
     
     nucImage = {};
     
@@ -314,6 +319,7 @@ measureMask = inclMask & ~exclMask;
 
 cyto_int = zeros(1,numChannels);
 nuc_int = zeros(1,numChannels);
+CoV = zeros(1,numChannels);
 
 for cc = 1:numChannels
     
@@ -326,6 +332,8 @@ for cc = 1:numChannels
     
     cyto_int(cc) = mean(cutoutImage(measureMask));
     nuc_int(cc) = mean(wholeImage(segMask));
+    
+    CoV(cc) = std(wholeImage(segMask))./mean(wholeImage(segMask));
     
 end
 
@@ -367,17 +375,39 @@ for cc = 1:numChannels
     
     YShiftVals = YShiftImg(YMask);
     XShiftVals = XShiftImg(XMask);
+        
     
-    YDiff = mean(abs(YVals-YShiftVals));
-    XDiff = mean(abs(XVals-XShiftVals));
+    normalizeMatching = true;
     
-    YRandDiff = mean(abs(YVals-YShiftVals(randperm(numel(YShiftVals)))));
-    XRandDiff = mean(abs(XVals-XShiftVals(randperm(numel(XShiftVals)))));
-    
-    neighbor_matching(cc) = ...
-        ((XRandDiff-XDiff)./XRandDiff ...
-        + (YRandDiff-YDiff)./YRandDiff)./2;
-    
+    if normalizeMatching
+        
+        YRandVals = YShiftVals(randperm(numel(YShiftVals)));
+        XRandVals = XShiftVals(randperm(numel(XShiftVals)));
+
+        neighborMatching_X = mean(...
+            (XVals-mean(XVals(:))).*(XShiftVals-mean(XShiftVals(:)))) ...
+            ./var(XVals(:));
+        
+        neighborMatching_Y = mean(...
+            (YVals-mean(YVals(:))).*(YShiftVals-mean(YShiftVals(:)))) ...
+            ./var(XVals(:));
+        
+        neighbor_matching(cc) = ...
+            (neighborMatching_X+neighborMatching_Y)./2;
+        
+    else
+        
+        neighborMatching_X = mean(...
+            (XVals-mean(XVals(:))).*(XShiftVals-mean(XShiftVals(:))));
+        
+        neighborMatching_Y = mean(...
+            (YVals-mean(YVals(:))).*(YShiftVals-mean(YShiftVals(:))));
+        
+        neighbor_matching(cc) = ...
+            (neighborMatching_X+neighborMatching_Y)./2;
+        
+    end
+
     % --- quantification of spatial correlation
     
     shiftVec = 0:10;
@@ -406,13 +436,17 @@ for cc = 1:numChannels
         XShiftVals = XShiftImg(XMask);
         
         YMean = mean(YVals);
-        YVar = var(YVals);
+%         YVar = var(YVals);
         
         XMean = mean(XVals);
-        XVar = var(XVals);
+%         XVar = var(XVals);
         
-        YCorr(kk) = mean((YVals-YMean).*(YShiftVals-YMean))./YVar;
-        XCorr(kk) = mean((XVals-XMean).*(XShiftVals-XMean))./XVar;
+%         YCorr(kk) = mean((YVals-YMean).*(YShiftVals-YMean))./YVar;
+%         XCorr(kk) = mean((XVals-XMean).*(XShiftVals-XMean))./XVar;
+%         
+        YCorr(kk) = mean((YVals-YMean).*(YShiftVals-YMean))./YMean.^2;
+        XCorr(kk) = mean((XVals-XMean).*(XShiftVals-XMean))./XMean.^2;
+        
         
     end
     
@@ -424,6 +458,21 @@ for cc = 1:numChannels
     AC_length(cc) = sum(meanACfun(2:end)).*sqrt(pixelArea);
     
 end
+
+% subplot(1,2,2)
+% plot(shiftVec(2:end),meanACfun(2:end),'k-')
+% set(gca,'YLim',[0,1])
+% hold off
+
+% disp(AC_length)
+
+% subplot(1,2,1)
+
+% showImg = segMask.*nucImage{segChannel};
+% imagesc(showImg)
+% title(neighbor_matching(segChannel))
+% colormap(gray)
+% waitforbuttonpress
 
 %
 %     if plotSegmentation

@@ -5,27 +5,20 @@ clear all
 plotSegmentation = false;
 
 sourceDirectory = ...
-    '/Users/hilbert/academia/VastenhouwLab/Flavopiridol_Sphere/FP_Inhibition_Sphere_Oct2016/';
+    '/Users/hilbert/academia/VastenhouwLab/Flavopiridol_Sphere/FP_Inhibition_Sphere_Nov2016/';
 
 filepath_cell = {...
-    'FP_TriColorIF_30Sept2016/FP_repeat1_4by4mm_0001.nd',...
-    'FP_TriColorIF_30Sept2016/FP_repeat1_4by4mm_0002.nd',...
-    'FP_TriColorIF_30Sept2016/CTRL_repeat1_4by4mm_0001.nd',...
-    'FP_TriColorIF_30Sept2016/FP_repeat2_0002.nd',...
-    'FP_TriColorIF_30Sept2016/FP_repeat2_0003.nd',...
-    'FP_TriColorIF_30Sept2016/FP_repeat2_0004.nd',...
-    'FP_TriColorIF_30Sept2016/FP_repeat2_0005.nd',...
-    'FP_TriColorIF_30Sept2016/CTRL_repeat2_0001.nd',...
-    'FP_DualColorIF_20Oct2016/Flavopiridol_Sample2_0001.nd',...
-    'FP_DualColorIF_20Oct2016/Flavopiridol_Sample2_0002.nd',...
-    'FP_DualColorIF_20Oct2016/Flavopiridol_Sample2_CTRL_0001.nd'};
+    'Flavopiridol_EU_RNA_17Nov2016/CTRL_0001.nd',...
+    'Flavopiridol_EU_RNA_17Nov2016/CTRL_0002.nd',...
+    'Flavopiridol_EU_RNA_17Nov2016/FP_0002.nd',...
+    'Flavopiridol_EU_RNA_17Nov2016/FP_0004.nd'};
 
 seriesExcludeCells = {[],[],[],[],[],[],[],[],[],[],[]};
 
-cond_vec = [1,1,0,1,1,1,1,0,1,1,0]; % [Flavopiridol] in uM
+cond_vec = [0,0,1,1]; % [Flavopiridol] in uM
 
-useSets = [10,11];
-useSets = [1:11];
+useSets = [1:4];
+% useSets = [4];
 
 filepath_cell = filepath_cell(useSets);
 seriesExcludeCells = seriesExcludeCells(useSets);
@@ -43,7 +36,7 @@ end
 
 %% --- analysis parameters
 
-segChannel = 1;
+segChannel = 3;
 histStepSize = 1;
 
 % % unit: square micrometers
@@ -176,102 +169,133 @@ figure(1)
 
 clf
 
-txn_division = 1400;
-
+txn_division = 1500;
 plotString = {'ko','r+'};
 
 pooledMatching = {[],[]};
-pooledInt = {[],[]};
+pooledpolII_Int = {[],[]};
+pooledRNA_Int = {[],[]};
 pooledAClength = {[],[]};
 
 allMatching = [];
-allInt = [];
+allPolII_Int = [];
+allRNA_Int = [];
 allAClength = [];
 
 for kk = 1:numSets
     
     [~,numImages] = size(neighbor_matching_cell{kk});
 
-    allMatching = [allMatching,neighbor_matching_cell{kk}(1,:)];
-    allInt = [allInt,nucInt_cell{kk}(2,:)];
-    allAClength = [allAClength,AClength_cell{kk}(1,:)];
+    allMatching = [allMatching,neighbor_matching_cell{kk}(3,:)];
+    allPolII_Int = [allPolII_Int,nucInt_cell{kk}(2,:)];
+    allRNA_Int = [allRNA_Int,nucInt_cell{kk}(3,:)];
+    allAClength = [allAClength,AClength_cell{kk}(3,:)];
     
     if cond_vec(kk) == 0
         thisPlotStyle = plotString{1};
-        pooledInt{1} = [pooledInt{1},nucInt_cell{kk}(2,:)];
+        pooledpolII_Int{1} = [pooledpolII_Int{1},nucInt_cell{kk}(2,:)];
+        pooledRNA_Int{1} = [pooledRNA_Int{1},nucInt_cell{kk}(1,:)];
         pooledMatching{1} = ...
-            [pooledMatching{1},neighbor_matching_cell{kk}(1,:)];
+            [pooledMatching{1},neighbor_matching_cell{kk}(3,:)];
         pooledAClength{1} = ...
-            [pooledAClength{1},AClength_cell{kk}(1,:)];
+            [pooledAClength{1},AClength_cell{kk}(3,:)];
     else
         thisPlotStyle = plotString{2};
-        pooledInt{2} = [pooledInt{2},nucInt_cell{kk}(2,:)];
+        pooledpolII_Int{2} = [pooledpolII_Int{2},nucInt_cell{kk}(2,:)];
+        pooledRNA_Int{2} = [pooledRNA_Int{2},nucInt_cell{kk}(1,:)];
         pooledMatching{2} = ...
-            [pooledMatching{2},neighbor_matching_cell{kk}(1,:)];
+            [pooledMatching{2},neighbor_matching_cell{kk}(3,:)];
         pooledAClength{2} = ...
-            [pooledAClength{2},AClength_cell{kk}(1,:)];
+            [pooledAClength{2},AClength_cell{kk}(3,:)];
     end
     
 end
 
-keepMask = ~isnan(allMatching) & ~isnan(allInt) & ~isnan(allAClength);
+keepMask = ~isnan(allMatching) & ~isnan(allPolII_Int) ...
+    & ~isnan(allRNA_Int) & ~isnan(allAClength);
 
 allMatching = allMatching(keepMask);
-allInt = allInt(keepMask);
+allPolII_Int = allPolII_Int(keepMask);
+allRNA_Int = allRNA_Int(keepMask);
 allAClength = allAClength(keepMask);
 
-runningWindowLims = [min(allInt),max(allInt)];
-runningWindowWidth = 500;
-numWindows = 100;
-lowLims = linspace(runningWindowLims(1),...
-    runningWindowLims(2)-runningWindowWidth,numWindows);
-windowCenters = lowLims + 0.5.*runningWindowWidth;
+CTRL_PolII_int = pooledpolII_Int{1};
+CTRL_RNA_int = pooledRNA_Int{1};
+CTRL_matching = pooledMatching{1};
+CTRL_AC_length = pooledAClength{1};
 
-avgMatching = zeros(1,numWindows);
-stdMatching = zeros(1,numWindows);
-
-avgAClength = zeros(1,numWindows);
-stdAClength = zeros(1,numWindows);
-
-
-for kk = 1:numWindows
-
-    inclInds = allInt>=lowLims(kk) ...
-        & allInt<(lowLims(kk)+runningWindowWidth);
-    
-    avgMatching(kk) = mean(allMatching(inclInds));
-    stdMatching(kk) = std(allMatching(inclInds));
-
-    avgAClength(kk) = mean(allAClength(inclInds));
-    stdAClength(kk) = std(allAClength(inclInds));
-
-end
+CTRL_PolII_int = ...
+    CTRL_PolII_int(~isnan(CTRL_PolII_int));
+CTRL_RNA_int = ...
+    CTRL_RNA_int(~isnan(CTRL_RNA_int));
+CTRL_matching = ...
+    CTRL_matching(~isnan(CTRL_matching));
+CTRL_AC_length = ...
+    CTRL_AC_length(~isnan(CTRL_AC_length));
 
 
-% 
-% fittedPoly = polyfit(allInt,allMatching,3);
-% 
-% XLimitValues = get(gca,'XLim');
-% 
-% polySupport = linspace(XLimitValues(1),XLimitValues(2),500);
-%
+includeInds = CTRL_PolII_int>txn_division;
 
-% plot(windowCenters,avgMatching,'k-')
-% plot(windowCenters,stdMatching,'r-')
+CTRL_active_PolII_int = ...
+    CTRL_PolII_int(includeInds);
+CTRL_active_RNA_int = ...
+    CTRL_RNA_int(includeInds);
+CTRL_active_matching = ...
+    CTRL_matching(includeInds);
+CTRL_active_AC_length = ...
+    CTRL_AC_length(includeInds);
 
+
+
+FP_PolII_int = pooledpolII_Int{2};
+FP_RNA_int = pooledRNA_Int{2};
+
+FP_AC_length = pooledAClength{2};
+
+FP_PolII_int = ...
+    FP_PolII_int(~isnan(FP_PolII_int));
+FP_RNA_int = ...
+    FP_RNA_int(~isnan(FP_RNA_int));
+FP_matching = ...
+    FP_matching(~isnan(FP_matching));
+FP_AC_length = ...
+    FP_AC_length(~isnan(FP_AC_length));
+
+
+subplot(1,2,1)
+
+plot(CTRL_active_PolII_int,CTRL_active_RNA_int,...
+    'ko','MarkerFaceColor',[0,0,0])
+hold on
+plot(FP_PolII_int,FP_RNA_int,'r+')
 hold off
 
-xlabel('I_{Ser2Phos} (a.u.)')
-ylabel('Neighbor matching')
-
-set(gca,'YLim',[0,1])
+xlabel('Intensity Ser2Phos (a.u.)')
+ylabel('Intensity RNA (a.u.)')
 
 
-FP_int = pooledInt{2};
-CTRL_noTxn_int = pooledInt{1}(pooledInt{1}<txn_division);
-CTRL_withTxn_int = pooledInt{1}(pooledInt{1}>=txn_division);
 
-FP_int = FP_int(~isnan(FP_int));
+subplot(1,2,2)
+
+
+plot(CTRL_active_PolII_int,...
+    CTRL_active_matching,'ko','MarkerFaceColor',[0,0,0])
+hold on
+plot(FP_PolII_int,FP_matching,'r+')
+hold off
+
+xlabel('Intensity RNA (a.u.)')
+ylabel('L_{corr} DNA (a.u.)')
+
+
+
+
+%% hkjhlhbli.ub
+
+CTRL_noTxn_int = pooledpolII_Int{1}(pooledpolII_Int{1}<txn_division);
+CTRL_withTxn_int = pooledpolII_Int{1}(pooledpolII_Int{1}>=txn_division);
+
+FP_PolII_int = FP_PolII_int(~isnan(FP_PolII_int));
 CTRL_noTxn_int = CTRL_noTxn_int(~isnan(CTRL_noTxn_int));
 CTRL_withTxn_int = ...
     CTRL_withTxn_int(~isnan(CTRL_withTxn_int));
@@ -279,17 +303,17 @@ CTRL_withTxn_int = ...
 
 
 FP_matching = pooledMatching{2};
-CTRL_noTxn_matching = pooledMatching{1}(pooledInt{1}<txn_division);
-CTRL_withTxn_matching = pooledMatching{1}(pooledInt{1}>=txn_division);
+CTRL_noTxn_matching = pooledMatching{1}(pooledpolII_Int{1}<txn_division);
+CTRL_withTxn_matching = pooledMatching{1}(pooledpolII_Int{1}>=txn_division);
 
 FP_matching = FP_matching(~isnan(FP_matching));
 CTRL_noTxn_matching = CTRL_noTxn_matching(~isnan(CTRL_noTxn_matching));
 CTRL_withTxn_matching = ...
     CTRL_withTxn_matching(~isnan(CTRL_withTxn_matching));
 
-FP_AC = pooledAClength{2}(pooledInt{2}<txn_division);
-CTRL_noTxn_AC = pooledAClength{1}(pooledInt{1}<txn_division);
-CTRL_withTxn_AC = pooledAClength{1}(pooledInt{1}>=txn_division);
+FP_AC = pooledAClength{2}(pooledpolII_Int{2}<txn_division);
+CTRL_noTxn_AC = pooledAClength{1}(pooledpolII_Int{1}<txn_division);
+CTRL_withTxn_AC = pooledAClength{1}(pooledpolII_Int{1}>=txn_division);
 
 FP_AC = FP_AC(~isnan(FP_AC));
 CTRL_noTxn_AC = CTRL_noTxn_AC(~isnan(CTRL_noTxn_AC));
@@ -320,7 +344,7 @@ binEdges = linspace(0,1,30);
 binCenters = binEdges(1:end-1) + 0.5.*(binEdges(2)-binEdges(1));
 
 
-subplot(3,3,3)
+subplot(3,5,5)
 
 [CTRL_withTxn_count,~] = ...
     histc(CTRL_withTxn_matching,binEdges);
@@ -347,7 +371,7 @@ ylabel('Frequency')
 
 set(gca,'Box','on')
 
-subplot(3,3,6)
+subplot(3,5,10)
 
 [CTRL_noTxn_count,~] = ...
     histc(CTRL_noTxn_matching,binEdges);
@@ -377,7 +401,7 @@ ylabel('Frequency')
 set(gca,'Box','on')
 
 
-subplot(3,3,9)
+subplot(3,5,15)
 
 [FP_count,~] = histc(FP_matching,binEdges);
 FP_count = FP_count(1:end-1);
@@ -422,7 +446,7 @@ stdCTRL_noTxn = std(CTRL_noTxn_matching);
 
 % -- linear fit to get slopes
 
-FP_fittedModel = fitlm(FP_int,FP_matching);
+FP_fittedModel = fitlm(FP_PolII_int,FP_matching);
 FP_Rsquared = FP_fittedModel.Rsquared;
 FP_slope= table2array(FP_fittedModel.Coefficients(2,1));
 FP_slope_pValue = table2array(FP_fittedModel.Coefficients(2,4));
@@ -433,20 +457,20 @@ CTRL_slope = table2array(CTRL_fittedModel.Coefficients(2,1));
 CTRL_slope_pValue = table2array(CTRL_fittedModel.Coefficients(2,4));
 
 
-subplot(1,3,1:2)
+subplot(1,5,1:3)
 
 plot([1,1].*txn_division,[0,1],'k--')
 
 hold on
 
-FPfit_handle = plot(FP_int(FP_int<txn_division),...
-    FP_fittedModel.feval(FP_int(FP_int<txn_division)),'r-',...
+FPfit_handle = plot(FP_PolII_int(FP_PolII_int<txn_division),...
+    FP_fittedModel.feval(FP_PolII_int(FP_PolII_int<txn_division)),'r-',...
     'LineWidth',1.4);
 CTRLfit_handle = plot(CTRL_withTxn_int,...
     CTRL_fittedModel.feval(CTRL_withTxn_int),'k-',...
     'LineWidth',1.4);
 
-FP_handle = plot(FP_int,FP_matching,'r+','MarkerSize',3);
+FP_handle = plot(FP_PolII_int,FP_matching,'r+','MarkerSize',3);
 CTRL_noTxn_handle = ...
     plot(CTRL_noTxn_int,CTRL_noTxn_matching,'ks',...
     'Color',[0.5,0.5,0.5],'MarkerSize',3);
@@ -461,11 +485,30 @@ ylabel('DNA demixing')
 
 legend([CTRL_withTxn_handle;CTRL_noTxn_handle;FP_handle;...
     FPfit_handle;CTRLfit_handle],...
-    {'Control, interphase','Control, not interphase',...
+    {'Control','Control, no transcription',...
     '1 \muM Flavopiridol',...
     sprintf('Slope: %0.2g (p=%0.2g)',FP_slope,FP_slope_pValue),...
     sprintf('Slope: %0.2g (p=%0.2g)',CTRL_slope,CTRL_slope_pValue)},...
     'EdgeColor','none')
+
+
+subplot(1,5,4)
+
+
+mean_vals = [meanCTRL_withTxn,meanFP,meanCTRL_noTxn];
+upper_CI = ...
+    [CTRL_withTxn_CI_matching(2),...
+    FP_CI_matching(2),CTRL_noTxn_CI_matching(2)]-mean_vals;
+lower_CI = ...
+    -[CTRL_withTxn_CI_matching(1),...
+    FP_CI_matching(1),CTRL_noTxn_CI_matching(1)]+mean_vals;
+
+errorbar(1:3,mean_vals,upper_CI,lower_CI,'ko')
+
+set(gca,'XLim',[0.5,3.5],...
+    'XTickLabel',{'Ctrl','FP','Ctrl, no txn'})
+ylabel('DNA demixing')
+
 
 %% --- Putting out example images
 
